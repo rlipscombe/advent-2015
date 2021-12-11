@@ -1,0 +1,132 @@
+# Advent of Code 2015, Day 6
+
+## Dependencies
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+Using regular expressions:
+
+```elixir
+parsers = [
+  {~r/^turn on ([0-9]+),([0-9]+) through ([0-9]+),([0-9]+)+$/, :turn_on},
+  {~r/^turn off ([0-9]+),([0-9]+) through ([0-9]+),([0-9]+)+$/, :turn_off},
+  {~r/^toggle ([0-9]+),([0-9]+) through ([0-9]+),([0-9]+)+$/, :toggle}
+]
+
+parse_line = fn line ->
+  Enum.find_value(parsers, fn {regex, action} ->
+    case Regex.run(regex, line, capture: :all_but_first) do
+      rect = [_x0, _y0, _x1, _y1] -> {action, Enum.map(rect, &String.to_integer/1)}
+      nil -> nil
+    end
+  end)
+end
+
+input =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(parse_line)
+```
+
+```elixir
+0b0000_0000_0110_0000
+```
+
+```elixir
+Bitwise.bsl(0b0000_0000_0000_0110, 0)
+# 0b0000_0000_0000_0110_0000
+```
+
+```elixir
+defmodule Lights do
+  defstruct [:width, :height, :bits]
+
+  def new(width, height),
+    do: %__MODULE__{width: width, height: height, bits: 0}
+
+  def turn_on(lights = %__MODULE__{bits: bits}, x0, y0, x1, y1) do
+    mask = mask_for(lights, x0, y0, x1, y1)
+    bits = bits |> Bitwise.bor(mask)
+    %__MODULE__{lights | bits: bits}
+  end
+
+  def turn_off(lights = %__MODULE__{bits: bits}, x0, y0, x1, y1) do
+    mask = mask_for(lights, x0, y0, x1, y1)
+    bits = bits |> Bitwise.band(Bitwise.bnot(mask))
+    %__MODULE__{lights | bits: bits}
+  end
+
+  def toggle(lights = %__MODULE__{bits: bits}, x0, y0, x1, y1) do
+    mask = mask_for(lights, x0, y0, x1, y1)
+    bits = bits |> Bitwise.bxor(mask)
+    %__MODULE__{lights | bits: bits}
+  end
+
+  def x_mask(x0, x1) do
+    Bitwise.bsl(1, x1 + 1) - Bitwise.bsl(1, x0)
+  end
+
+  def mask_for(_lights = %__MODULE__{width: width}, x0, y0, x1, y1) do
+    # 2^(x1+1) - 2^x0
+    x_mask = Bitwise.bsl(1, x1 + 1) - Bitwise.bsl(1, x0)
+
+    Enum.reduce(y0..y1, 0, fn y, mask ->
+      mask |> Bitwise.bor(Bitwise.bsl(x_mask, width * y))
+    end)
+  end
+end
+
+lights = Lights.new(4, 4)
+# Lights in the first row
+0b0000_0000_0000_0001 = Lights.mask_for(lights, 0, 0, 0, 0)
+0b0000_0000_0000_0110 = Lights.mask_for(lights, 1, 0, 2, 0)
+0b0000_0000_0000_1110 = Lights.mask_for(lights, 1, 0, 3, 0)
+
+# Lights in the second row
+0b0000_0000_0110_0000 = Lights.mask_for(lights, 1, 1, 2, 1)
+
+# Block of lights in the middle
+0b0000_0110_0110_0000 = Lights.mask_for(lights, 1, 1, 2, 2)
+
+# Slightly more complicated
+0b0011_0011_0000_0000 = Lights.mask_for(lights, 0, 2, 1, 3)
+
+:pass
+```
+
+```elixir
+lights = Lights.new(4, 4)
+lights = lights |> Lights.turn_on(1, 1, 2, 2) |> IO.inspect(base: :binary)
+%Lights{bits: 0b0000_0110_0110_0000} = lights
+
+lights = lights |> Lights.turn_off(2, 0, 3, 1) |> IO.inspect(base: :binary)
+%Lights{bits: 0b0000_0110_0010_0000} = lights
+
+lights = lights |> Lights.toggle(0, 2, 1, 3) |> IO.inspect(base: :binary)
+%Lights{bits: 0b0011_0101_0010_0000} = lights
+
+:pass
+```
+
+```elixir
+lights =
+  Enum.reduce(input, Lights.new(1000, 1000), fn
+    {:turn_on, [x0, y0, x1, y1]}, lights -> lights |> Lights.turn_on(x0, y0, x1, y1)
+    {:turn_off, [x0, y0, x1, y1]}, lights -> lights |> Lights.turn_off(x0, y0, x1, y1)
+    {:toggle, [x0, y0, x1, y1]}, lights -> lights |> Lights.toggle(x0, y0, x1, y1)
+  end)
+```
+
+```elixir
+%Lights{bits: bits} = lights
+Enum.sum(for <<bit::1 <- :binary.encode_unsigned(bits)>>, do: bit)
+```
