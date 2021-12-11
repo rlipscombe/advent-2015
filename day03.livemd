@@ -1,0 +1,60 @@
+# Advent of Code 2015, Day 3
+
+## Dependencies
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+input =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_charlist/1)
+  |> List.flatten()
+```
+
+## Part 1
+
+```elixir
+deliver = fn input ->
+  input
+  |> Enum.reduce({0, 0, %{}}, fn ch, {x, y, visited} ->
+    visited = Map.update(visited, {x, y}, 1, fn count -> count + 1 end)
+
+    case ch do
+      ?^ -> {x, y - 1, visited}
+      ?> -> {x + 1, y, visited}
+      ?v -> {x, y + 1, visited}
+      ?< -> {x - 1, y, visited}
+    end
+  end)
+end
+
+{_, _, visited} = deliver.(input)
+Enum.count(visited)
+```
+
+## Part 2
+
+```elixir
+{santa, robo_santa} =
+  input
+  |> Enum.with_index()
+  |> Enum.split_with(fn {_, index} -> rem(index, 2) == 0 end)
+
+without_index = fn pairs -> Enum.map(pairs, fn {value, _index} -> value end) end
+santa = without_index.(santa)
+robo_santa = without_index.(robo_santa)
+{_, _, santa_visited} = deliver.(santa)
+{_, _, robo_santa_visited} = deliver.(robo_santa)
+
+visited = Map.merge(santa_visited, robo_santa_visited, fn _k, s, r -> s + r end)
+Enum.count(visited)
+```

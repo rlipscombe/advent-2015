@@ -1,0 +1,64 @@
+# Advent of Code 2015, Day 4
+
+## Dependencies
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.text("Puzzle Input:")
+```
+
+```elixir
+input = Kino.Input.read(input)
+```
+
+## Miner
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+defmodule Miner do
+  def solve(input, target), do: solve(input, target, 1)
+
+  def solve(input, target, suffix) do
+    value = "#{input}#{suffix}"
+    hash = :crypto.hash(:md5, value) |> Base.encode16()
+
+    leading = count_leading(?0, hash)
+
+    case leading do
+      ^target -> suffix
+      _ -> solve(input, target, suffix + 1)
+    end
+  end
+
+  defp count_leading(ch, str) when is_binary(str), do: count_leading(ch, String.to_charlist(str))
+
+  defp count_leading(ch, str) when is_list(str) do
+    Enum.reduce_while(str, 0, fn
+      ^ch, acc -> {:cont, acc + 1}
+      _, acc -> {:halt, acc}
+    end)
+  end
+end
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part 1
+
+```elixir
+Miner.solve(input, 5)
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part 2
+
+```elixir
+Miner.solve(input, 6)
+```

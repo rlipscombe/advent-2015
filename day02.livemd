@@ -1,0 +1,51 @@
+# Advent of Code 2015, Day 2
+
+## Dependencies
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+input =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    String.split(line, "x", trim: true) |> Enum.map(&String.to_integer/1) |> Enum.sort()
+  end)
+```
+
+## Part 1
+
+```elixir
+input
+|> Enum.map(fn [a, b, c] ->
+  # Formatter keeps removing the parentheses, so...
+  val = 2 * a * b
+  val = val + 2 * a * c
+  val = val + 2 * b * c
+  val = val + a * b
+  val
+end)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+input
+|> Enum.map(fn [a, b, c] ->
+  # Formatter keeps removing the parentheses, so...
+  val = a + a
+  val = val + b + b
+  val = val + a * b * c
+  val
+end)
+|> Enum.sum()
+```

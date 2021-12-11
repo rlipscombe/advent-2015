@@ -1,0 +1,38 @@
+# Advent of Code 2015, Day 1
+
+## Dependencies
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+```elixir
+input = Kino.Input.text("Puzzle Input:")
+```
+
+## Part 1
+
+```elixir
+input =
+  Kino.Input.read(input)
+  |> String.to_charlist()
+
+input
+|> Enum.reduce(0, fn
+  ?\(, acc -> acc + 1
+  ?\), acc -> acc - 1
+end)
+```
+
+## Part 2
+
+```elixir
+input
+|> Enum.with_index()
+|> Enum.reduce_while(0, fn
+  {?\(, pos}, _acc = -2 -> {:halt, pos + 1}
+  {?\(, _pos}, acc -> {:cont, acc + 1}
+  {?\), pos}, _acc = 0 -> {:halt, pos + 1}
+  {?\), _pos}, acc -> {:cont, acc - 1}
+end)
+```

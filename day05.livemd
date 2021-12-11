@@ -1,0 +1,160 @@
+# Advent of Code 2015, Day 5
+
+## Dependencies
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+input =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_charlist/1)
+```
+
+## Part 1
+
+```elixir
+at_least_three_vowels? = fn line ->
+  vowels = 'aeiou'
+  Enum.count(line, &(&1 in vowels)) >= 3
+end
+
+true = at_least_three_vowels?.('ugknbfddgicrmopn')
+false = at_least_three_vowels?.('qqq')
+false = at_least_three_vowels?.('dvszwmarrgswjxmb')
+:pass
+```
+
+```elixir
+has_double_letter? = fn line ->
+  line
+  |> Enum.chunk_every(2, 1)
+  |> Enum.any?(fn
+    [x, x] -> true
+    _ -> false
+  end)
+end
+
+true = has_double_letter?.('dvszwmarrgswjxmb')
+false = has_double_letter?.('jchzalrnumimnmhp')
+:pass
+```
+
+```elixir
+has_no_disallowed_substring? = fn line ->
+  disallowed = ['ab', 'cd', 'pq', 'xy']
+
+  Enum.all?(disallowed, fn pattern ->
+    :string.find(line, pattern) == :nomatch
+  end)
+end
+
+false = has_no_disallowed_substring?.('haegwjzuvuyypxyu')
+true = has_no_disallowed_substring?.('jchzalrnumimnmhp')
+:pass
+```
+
+```elixir
+filters = [
+  at_least_three_vowels?,
+  has_double_letter?,
+  has_no_disallowed_substring?
+]
+
+nice =
+  input
+  |> Enum.filter(fn line ->
+    Enum.all?(filters, fn filter -> filter.(line) end)
+  end)
+
+Enum.count(nice)
+```
+
+## Part 2
+
+```elixir
+overlaps = fn pairs ->
+  # Look for overlaps. This is just two identical adjacent chunks.
+  # We'll collect them for later.
+  pairs
+  |> Enum.chunk_every(2, 1, :discard)
+  |> Enum.filter(fn
+    [a, a] -> true
+    _ -> false
+  end)
+  |> Enum.map(fn [a, a] -> a end)
+end
+
+['aa'] = overlaps.(['aa', 'aa'])
+[] = overlaps.(['xy', 'yx', 'xy'])
+:pass
+```
+
+```elixir
+part2a? = fn line ->
+  pairs =
+    line
+    |> Enum.chunk_every(2, 1, :discard)
+
+  overlaps = overlaps.(pairs)
+  frequencies = pairs |> Enum.frequencies()
+
+  Enum.reduce(overlaps, frequencies, fn overlap, freqs ->
+    Map.update!(freqs, overlap, fn count -> count - 2 end)
+  end)
+  |> Enum.count(fn
+    {_k, v} when v >= 2 -> true
+    _ -> false
+  end) >= 1
+end
+
+true = part2a?.('xyxy')
+false = part2a?.('aaa')
+true = part2a?.('qjhvhtzxzqqjkmpb')
+true = part2a?.('xxyxx')
+true = part2a?.('uurcxstgmygtbstg')
+false = part2a?.('ieodomkazucvgmuy')
+:pass
+```
+
+```elixir
+part2b? = fn line ->
+  triples =
+    line
+    |> Enum.chunk_every(3, 1, :discard)
+
+  Enum.any?(triples, fn
+    [o, _, o] -> true
+    _ -> false
+  end)
+end
+
+true = part2b?.('xxyxx')
+false = part2b?.('uurcxstgmygtbstg')
+true = part2b?.('ieodomkazucvgmuy')
+:pass
+```
+
+```elixir
+filters = [
+  part2a?,
+  part2b?
+]
+
+nice =
+  input
+  |> Enum.filter(fn line ->
+    Enum.all?(filters, fn filter -> filter.(line) end)
+  end)
+
+Enum.count(nice)
+```
