@@ -54,10 +54,19 @@ routes = EnumEx.permutations(cities)
 ```
 
 ```elixir
-routes
-|> Enum.map(fn route ->
-  legs = route |> Enum.chunk_every(2, 1, :discard)
-  distance = Enum.reduce(legs, 0, fn leg, acc -> Map.fetch!(distances, leg) + acc end)
-  {route, distance}
-end)
+options =
+  routes
+  |> Enum.map(fn route ->
+    legs = route |> Enum.chunk_every(2, 1, :discard)
+    distance = Enum.reduce(legs, 0, fn leg, acc -> Map.fetch!(distances, leg) + acc end)
+    {route, distance}
+  end)
+```
+
+```elixir
+Enum.min_by(options, fn {_route, distance} -> distance end)
+```
+
+```elixir
+Enum.max_by(options, fn {_route, distance} -> distance end)
 ```
