@@ -3,7 +3,10 @@
 ## Dependencies
 
 ```elixir
-Mix.install([{:kino, github: "livebook-dev/kino"}])
+Mix.install([
+  {:kino, github: "livebook-dev/kino"},
+  {:nx, github: "elixir-nx/nx", sparse: "nx"}
+])
 ```
 
 ## Input
@@ -37,14 +40,7 @@ input =
   |> Enum.map(parse_line)
 ```
 
-```elixir
-0b0000_0000_0110_0000
-```
-
-```elixir
-Bitwise.bsl(0b0000_0000_0000_0110, 0)
-# 0b0000_0000_0000_0110_0000
-```
+## Part 1
 
 ```elixir
 defmodule Lights do
@@ -105,13 +101,13 @@ lights = Lights.new(4, 4)
 
 ```elixir
 lights = Lights.new(4, 4)
-lights = lights |> Lights.turn_on(1, 1, 2, 2) |> IO.inspect(base: :binary)
+lights = lights |> Lights.turn_on(1, 1, 2, 2)
 %Lights{bits: 0b0000_0110_0110_0000} = lights
 
-lights = lights |> Lights.turn_off(2, 0, 3, 1) |> IO.inspect(base: :binary)
+lights = lights |> Lights.turn_off(2, 0, 3, 1)
 %Lights{bits: 0b0000_0110_0010_0000} = lights
 
-lights = lights |> Lights.toggle(0, 2, 1, 3) |> IO.inspect(base: :binary)
+lights = lights |> Lights.toggle(0, 2, 1, 3)
 %Lights{bits: 0b0011_0101_0010_0000} = lights
 
 :pass
@@ -129,4 +125,88 @@ lights =
 ```elixir
 %Lights{bits: bits} = lights
 Enum.sum(for <<bit::1 <- :binary.encode_unsigned(bits)>>, do: bit)
+```
+
+<!-- livebook:{"branch_parent_index":1} -->
+
+## Part 2
+
+Annoyingly, part 2 doesn't lend itself to the bit-mangling solution,
+so we'll have to try something different.
+
+Our problem here is that Elixir is _terrible_ at dealing with arrays.
+
+Given that we're basically dealing with a 1000x1000 matrix, I wonder whether Nx is our friend here.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Let's experiment:
+
+```elixir
+t = Nx.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+t |> Nx.pad(0, [{_top = 3, _bottom = 2, 0}, {_left = 4, _right = 5, 0}])
+```
+
+```elixir
+defmodule NxLights do
+  defstruct [:width, :height, :tensor, :all_zeroes]
+
+  def new(width, height) do
+    all_zeroes = Nx.tensor(for _ <- 0..(height - 1), do: for(_ <- 0..(width - 1), do: 0))
+    %__MODULE__{width: width, height: height, tensor: all_zeroes, all_zeroes: all_zeroes}
+  end
+
+  def increase(lights = %__MODULE__{tensor: tensor}, range = [_x0, _y0, _x1, _y1], value) do
+    delta = delta(lights, range, value)
+    tensor = tensor |> Nx.add(delta)
+    %__MODULE__{lights | tensor: tensor}
+  end
+
+  def decrease(
+        lights = %__MODULE__{tensor: tensor, all_zeroes: all_zeroes},
+        range = [_x0, _y0, _x1, _y1],
+        value
+      ) do
+    delta = delta(lights, range, -value)
+    tensor = tensor |> Nx.add(delta) |> Nx.max(all_zeroes)
+    %__MODULE__{lights | tensor: tensor}
+  end
+
+  def brightness(%__MODULE__{tensor: tensor}) do
+    Nx.sum(tensor) |> Nx.to_number()
+  end
+
+  defp delta(%__MODULE__{width: width, height: height}, _range = [x0, y0, x1, y1], value) do
+    Nx.tensor(for _ <- y0..y1, do: for(_ <- x0..x1, do: value))
+    |> Nx.pad(0, [
+      {_top = y0, _bottom = height - y1 - 1, 0},
+      {_left = x0, _right = width - x1 - 1, 0}
+    ])
+  end
+end
+
+lights = NxLights.new(3, 4)
+lights = lights |> NxLights.increase([1, 1, 1, 3], 2) |> IO.inspect()
+lights = lights |> NxLights.increase([0, 0, 0, 0], 1) |> IO.inspect()
+lights = lights |> NxLights.decrease([0, 0, 3, 3], 1) |> IO.inspect()
+lights = lights |> NxLights.decrease([0, 0, 3, 3], 1) |> IO.inspect()
+NxLights.brightness(lights)
+```
+
+```elixir
+lights =
+  Enum.reduce(input, NxLights.new(1000, 1000), fn
+    {:turn_on, range}, lights ->
+      NxLights.increase(lights, range, 1)
+
+    {:turn_off, range}, lights ->
+      NxLights.decrease(lights, range, 1)
+
+    {:toggle, range}, lights ->
+      NxLights.increase(lights, range, 2)
+  end)
+```
+
+```elixir
+NxLights.brightness(lights)
 ```
