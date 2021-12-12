@@ -5,7 +5,7 @@
 ```elixir
 Mix.install([
   {:kino, github: "livebook-dev/kino"},
-  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
+  {:exla, github: "elixir-nx/nx", sparse: "exla"},
   {:nx, github: "elixir-nx/nx", sparse: "nx", override: true}
 ])
 ```
