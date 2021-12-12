@@ -1,0 +1,57 @@
+# Advent of Code 2015, Day 10
+
+## Dependencies
+
+```elixir
+Mix.install([
+  {:kino, github: "livebook-dev/kino"}
+])
+```
+
+## Puzzle Input
+
+```elixir
+input = Kino.Input.text("Puzzle Input:")
+```
+
+```elixir
+iterations = Kino.Input.text("Iterations?")
+```
+
+```elixir
+input = Kino.Input.read(input) |> String.to_charlist()
+iterations = Kino.Input.read(iterations) |> String.to_integer()
+[input: input, iterations: iterations]
+```
+
+```elixir
+chunk_fun = fn
+  ch, nil -> {:cont, {{1, ch}, []}}
+  ch, {{count, ch}, acc} -> {:cont, {{count + 1, ch}, acc}}
+  new, {{count, ch}, acc} -> {:cont, {{1, new}, [{count, ch} | acc]}}
+end
+
+after_fun = fn {{count, ch}, acc} ->
+  {:cont, Enum.reverse([{count, ch} | acc]), acc}
+end
+
+unchunk = fn chunks ->
+  chunks
+  |> Enum.reduce([], fn {count, ch}, acc -> [acc, ?0 + count, ch] end)
+  |> List.flatten()
+end
+```
+
+```elixir
+next_fun = fn input ->
+  [next] = input |> Enum.chunk_while(nil, chunk_fun, after_fun)
+  unchunk.(next)
+end
+
+results =
+  Stream.iterate(input, next_fun)
+  |> Enum.take(iterations + 1)
+
+[result] = Enum.take(results, -1)
+length(result)
+```

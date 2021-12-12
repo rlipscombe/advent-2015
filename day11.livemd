@@ -1,0 +1,112 @@
+# Advent of Code 2015, Day 11
+
+## Dependencies
+
+```elixir
+Mix.install([
+  {:kino, github: "livebook-dev/kino"}
+])
+```
+
+## Puzzle Input
+
+```elixir
+input = Kino.Input.text("Puzzle Input:")
+```
+
+```elixir
+input = Kino.Input.read(input) |> String.to_charlist()
+```
+
+```elixir
+defmodule Part1 do
+  def increment(str) do
+    str
+    |> Enum.reverse()
+    |> do_increment()
+    |> Enum.reverse()
+  end
+
+  def do_increment([x | rest]) do
+    case [x + 1 | rest] do
+      [?{ | _] -> [?a | do_increment(rest)]
+      result -> result
+    end
+  end
+end
+
+'abd' = Part1.increment('abc')
+'xy' = Part1.increment('xx')
+'xz' = Part1.increment('xy')
+'ya' = Part1.increment('xz')
+:pass
+```
+
+```elixir
+has_3_straight = fn str ->
+  Enum.chunk_every(str, 3, 1, :discard)
+  |> Enum.any?(fn [a, b, c] -> b == a + 1 and c == b + 1 end)
+end
+
+true = has_3_straight.('hijklmmn')
+false = has_3_straight.('abbceffg')
+:pass
+```
+
+```elixir
+has_no_iol = fn str ->
+  not (Enum.member?(str, ?i) or Enum.member?(str, ?o) or Enum.member?(str, ?l))
+end
+
+true = has_no_iol.('abbceffg')
+false = has_no_iol.('hijklmmn')
+:pass
+```
+
+```elixir
+find_runs = fn str ->
+  chunk_fun = fn
+    ch, [] ->
+      {:cont, [ch]}
+
+    ch, acc = [ch | _] ->
+      {:cont, [ch | acc]}
+
+    ch, [_] ->
+      {:cont, [ch]}
+
+    ch, acc ->
+      {:cont, acc, [ch]}
+  end
+
+  after_fun = fn
+    acc = [_] ->
+      {:cont, acc}
+
+    acc = [_ | _] ->
+      {:cont, acc, acc}
+  end
+
+  str
+  |> Enum.chunk_while([], chunk_fun, after_fun)
+end
+
+has_two_pairs = fn str ->
+  runs = find_runs.(str)
+  count = Enum.count(runs, fn r -> rem(length(r), 2) == 0 end)
+  count == 2
+end
+
+false = has_two_pairs.('abbbceffg')
+true = has_two_pairs.('abbceffg')
+:pass
+```
+
+```elixir
+Stream.iterate(input, &Part1.increment/1)
+|> Stream.drop(1)
+|> Stream.filter(has_no_iol)
+|> Stream.filter(has_3_straight)
+|> Stream.filter(has_two_pairs)
+|> Enum.take(2)
+```
