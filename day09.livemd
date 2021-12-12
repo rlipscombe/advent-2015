@@ -1,0 +1,63 @@
+# Advent of Code 2015, Day 9
+
+## Dependencies
+
+```elixir
+Mix.install([
+  {:kino, github: "livebook-dev/kino"}
+])
+```
+
+## Puzzle Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+input =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.map(&Regex.run(~r/^(.+) to (.+) = (\d+)$/, &1))
+```
+
+```elixir
+cities =
+  input
+  |> Enum.reduce(MapSet.new(), fn [_, from, to, _], set ->
+    set |> MapSet.put(from) |> MapSet.put(to)
+  end)
+  |> MapSet.to_list()
+```
+
+```elixir
+distances =
+  input
+  |> Enum.reduce(%{}, fn [_, from, to, distance], map ->
+    distance = String.to_integer(distance)
+    map |> Map.put([from, to], distance) |> Map.put([to, from], distance)
+  end)
+```
+
+```elixir
+defmodule EnumEx do
+  # https://elixirforum.com/t/most-elegant-way-to-generate-all-permutations/2706/2
+  def permutations([]), do: [[]]
+
+  def permutations(list),
+    do: for(elem <- list, rest <- permutations(list -- [elem]), do: [elem | rest])
+end
+```
+
+```elixir
+routes = EnumEx.permutations(cities)
+```
+
+```elixir
+routes
+|> Enum.map(fn route ->
+  legs = route |> Enum.chunk_every(2, 1, :discard)
+  distance = Enum.reduce(legs, 0, fn leg, acc -> Map.fetch!(distances, leg) + acc end)
+  {route, distance}
+end)
+```
