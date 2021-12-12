@@ -1,0 +1,80 @@
+# Advent of Code 2015, Day 8
+
+## Dependencies
+
+```elixir
+Mix.install([
+  {:kino, github: "livebook-dev/kino"}
+])
+```
+
+## Puzzle Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+input =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+```
+
+## Part 1
+
+```elixir
+# We want a module, because we're going to do some recursing.
+defmodule Part1 do
+  def decode_len(str), do: decode_len(str, 0) - 2
+
+  defp decode_len("\\\"" <> rest, acc), do: decode_len(rest, acc + 1)
+  defp decode_len("\\\\" <> rest, acc), do: decode_len(rest, acc + 1)
+  defp decode_len(<<"\\x", _, _, rest::binary>>, acc), do: decode_len(rest, acc + 1)
+  defp decode_len(<<_ch, rest::binary>>, acc), do: decode_len(rest, acc + 1)
+  defp decode_len(<<>>, acc), do: acc
+end
+
+each =
+  Enum.map(input, fn str ->
+    {String.length(str), Part1.decode_len(str), str}
+  end)
+```
+
+```elixir
+each |> Enum.reduce(0, fn {code, actual, _}, acc -> code - actual + acc end)
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+defmodule Part2 do
+  def encode(str), do: IO.iodata_to_binary(encodep(str))
+  def encode_len(str), do: IO.iodata_length(encodep(str)) + 2
+
+  defp encodep("\"" <> rest), do: ["\\\"", encode(rest)]
+  defp encodep("\\" <> rest), do: ["\\\\", encode(rest)]
+  defp encodep(<<ch, rest::binary>>), do: [ch, encode(rest)]
+  defp encodep(<<>>), do: []
+end
+```
+
+```elixir
+6 = Part2.encode_len(~S{""})
+9 = Part2.encode_len(~S{"abc"})
+16 = Part2.encode_len(~S{"aaa\"aaa"})
+11 = Part2.encode_len(~S{"\x27"})
+:pass
+```
+
+```elixir
+each =
+  Enum.map(input, fn str ->
+    {String.length(str), Part1.decode_len(str), Part2.encode_len(str), str}
+  end)
+```
+
+```elixir
+each |> Enum.reduce(0, fn {code, _, encoded, _}, acc -> encoded - code + acc end)
+```

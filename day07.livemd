@@ -1,0 +1,114 @@
+# Advent of Code 2015, Day 7
+
+## Dependencies
+
+```elixir
+Mix.install([
+  {:kino, github: "livebook-dev/kino"}
+])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+parse = fn
+  "NOT " <> input ->
+    {:not, input}
+
+  input ->
+    case Integer.parse(input) do
+      {value, ""} ->
+        value
+
+      {value, " AND " <> rhs} ->
+        {:and, value, rhs}
+
+      :error ->
+        case Regex.run(~r/(\w+) (\w+) (\w+)/, input) do
+          [_, lhs, "AND", rhs] -> {:and, lhs, rhs}
+          [_, lhs, "OR", rhs] -> {:or, lhs, rhs}
+          [_, lhs, "LSHIFT", rhs] -> {:lshift, lhs, String.to_integer(rhs)}
+          [_, lhs, "RSHIFT", rhs] -> {:rshift, lhs, String.to_integer(rhs)}
+          nil -> input
+        end
+    end
+end
+
+circuit =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, " -> ", trim: true))
+  |> Enum.reduce(%{}, fn [input, output], circuit ->
+    parsed = parse.(input)
+    Map.put(circuit, output, parsed)
+  end)
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+defmodule Circuit do
+  def evaluate(circuit, value) when is_integer(value), do: {circuit, value}
+
+  def evaluate(circuit, term) do
+    case Map.get(circuit, term) do
+      nil -> evaluate2(circuit, term)
+      value when is_integer(value) -> {circuit, value}
+      _ -> evaluate2(circuit, term)
+    end
+  end
+
+  def evaluate2(circuit, term = {:and, lhs, rhs}) do
+    {circuit, lhs} = evaluate(circuit, lhs)
+    {circuit, rhs} = evaluate(circuit, rhs)
+    memoize(circuit, term, Bitwise.band(lhs, rhs))
+  end
+
+  def evaluate2(circuit, term = {:or, lhs, rhs}) do
+    {circuit, lhs} = evaluate(circuit, lhs)
+    {circuit, rhs} = evaluate(circuit, rhs)
+    memoize(circuit, term, Bitwise.bor(lhs, rhs))
+  end
+
+  def evaluate2(circuit, term = {:not, expr}) do
+    {circuit, expr} = evaluate(circuit, expr)
+    memoize(circuit, term, 65535 - expr)
+  end
+
+  def evaluate2(circuit, term = {:lshift, lhs, rhs}) do
+    {circuit, lhs} = evaluate(circuit, lhs)
+    {circuit, rhs} = evaluate(circuit, rhs)
+    memoize(circuit, term, Bitwise.bsl(lhs, rhs))
+  end
+
+  def evaluate2(circuit, term = {:rshift, lhs, rhs}) do
+    {circuit, lhs} = evaluate(circuit, lhs)
+    {circuit, rhs} = evaluate(circuit, rhs)
+    memoize(circuit, term, Bitwise.bsr(lhs, rhs))
+  end
+
+  def evaluate2(circuit, term) do
+    evaluate(circuit, Map.fetch!(circuit, term))
+  end
+
+  defp memoize(circuit, term, value) do
+    {Map.put(circuit, term, value), value}
+  end
+end
+```
+
+```elixir
+{_, result} = Circuit.evaluate(circuit, "a")
+IO.puts("Part 1: #{result}")
+
+circuit = Map.put(circuit, "b", result)
+{_, result} = Circuit.evaluate(circuit, "a")
+IO.puts("Part 2: #{result}")
+
+Circuit.evaluate(circuit, "a")
+```
