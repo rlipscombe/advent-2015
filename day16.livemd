@@ -54,13 +54,13 @@ end)
 Enum.filter(input, fn {_sue, clues} ->
   Enum.all?(clues, fn
     _clue = {clue, qty} when clue in ["cats", "trees"] ->
-      Map.fetch!(evidence, clue) < qty
+      qty > Map.fetch!(evidence, clue)
 
     _clue = {clue, qty} when clue in ["pomeranians", "goldfish"] ->
-      Map.fetch!(evidence, clue) > qty
+      qty < Map.fetch!(evidence, clue)
 
     _clue = {clue, qty} ->
-      Map.fetch!(evidence, clue) == qty
+      qty == Map.fetch!(evidence, clue)
   end)
 end)
 ```
