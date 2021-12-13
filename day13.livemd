@@ -1,0 +1,77 @@
+# Advent of Code 2015, Day 13
+
+## Dependencies
+
+```elixir
+Mix.install([
+  {:kino, github: "livebook-dev/kino"}
+])
+```
+
+## Puzzle Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+re = ~r/^(.*) would (gain|lose) (\d+) happiness units by sitting next to (.*).$/
+
+rules =
+  input =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.map(&Regex.run(re, &1, capture: :all_but_first))
+  |> Enum.map(fn [a, gl, pts, b] ->
+    case gl do
+      "gain" -> [[a, b], String.to_integer(pts)]
+      "lose" -> [[a, b], -String.to_integer(pts)]
+    end
+  end)
+```
+
+```elixir
+names = MapSet.to_list(for [[n, _], _] <- rules, do: n, into: MapSet.new())
+```
+
+```elixir
+defmodule EnumEx do
+  # https://elixirforum.com/t/most-elegant-way-to-generate-all-permutations/2706/2
+  def permutations([]), do: [[]]
+
+  def permutations(list),
+    do: for(elem <- list, rest <- permutations(list -- [elem]), do: [elem | rest])
+end
+```
+
+## Part 1
+
+```elixir
+# Convert the rules into a map for easy lookup.
+rules = Enum.reduce(rules, %{}, fn [pair, pts], map -> Map.put(map, pair, pts) end)
+
+# Work out the possible table arrangements.
+permutations = EnumEx.permutations(names)
+
+rings =
+  permutations
+  |> Enum.map(fn list ->
+    (list ++ [hd(list)]) |> Enum.chunk_every(2, 1, :discard)
+  end)
+
+arrangements =
+  Enum.map(rings, fn ring ->
+    Enum.map(ring, fn [a, b] ->
+      {[a, b], Map.fetch!(rules, [a, b]), Map.fetch!(rules, [b, a])}
+    end)
+  end)
+
+arrangements =
+  arrangements
+  |> Enum.map(fn arrangement ->
+    score = Enum.reduce(arrangement, 0, fn {_pair, s1, s2}, acc -> acc + s1 + s2 end)
+    {arrangement, score}
+  end)
+
+arrangements |> Enum.max_by(fn {_arr, pts} -> pts end)
+```
