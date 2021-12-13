@@ -83,11 +83,17 @@ score_recipe = fn recipe ->
       acc + qty * x
     end)
 
+  calories =
+    Enum.reduce(recipe, 0, fn {{_, %{calories: x}}, qty}, acc ->
+      acc + qty * x
+    end)
+
   score = %{
     capacity: if(capacity > 0, do: capacity, else: 0),
     durability: if(durability > 0, do: durability, else: 0),
     flavor: if(flavor > 0, do: flavor, else: 0),
-    texture: if(texture > 0, do: texture, else: 0)
+    texture: if(texture > 0, do: texture, else: 0),
+    calories: if(calories > 0, do: calories, else: 0)
   }
 
   score
@@ -124,8 +130,32 @@ cookies =
 
 ```elixir
 cookies
-|> Enum.map(fn {recipe, score} ->
-  Enum.reduce(score, 1, fn {_, a}, acc -> acc * a end)
+|> Enum.map(fn {_recipe, score} ->
+  Enum.reduce(score, 1, fn
+    {:calories, _}, acc -> acc
+    {_, a}, acc -> acc * a
+  end)
+end)
+|> Enum.max()
+```
+
+## Part 2
+
+```elixir
+healthy_cookies =
+  cookies
+  |> Enum.filter(fn {recipe, score} ->
+    score.calories == 500
+  end)
+```
+
+```elixir
+healthy_cookies
+|> Enum.map(fn {_recipe, score} ->
+  Enum.reduce(score, 1, fn
+    {:calories, _}, acc -> acc
+    {_, a}, acc -> acc * a
+  end)
 end)
 |> Enum.max()
 ```
