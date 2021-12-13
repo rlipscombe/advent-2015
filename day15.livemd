@@ -54,33 +54,71 @@ Combinations.get([:a, :b, :c, :d], 10)
 ```
 
 ```elixir
+combinations = Combinations.get(ingredients, 100)
+```
+
+```elixir
+Enum.count(combinations)
+```
+
+```elixir
+score_recipe = fn recipe ->
+  capacity =
+    Enum.reduce(recipe, 0, fn {{_, %{capacity: x}}, qty}, acc ->
+      acc + qty * x
+    end)
+
+  durability =
+    Enum.reduce(recipe, 0, fn {{_, %{durability: x}}, qty}, acc ->
+      acc + qty * x
+    end)
+
+  flavor =
+    Enum.reduce(recipe, 0, fn {{_, %{flavor: x}}, qty}, acc ->
+      acc + qty * x
+    end)
+
+  texture =
+    Enum.reduce(recipe, 0, fn {{_, %{texture: x}}, qty}, acc ->
+      acc + qty * x
+    end)
+
+  score = %{
+    capacity: if(capacity > 0, do: capacity, else: 0),
+    durability: if(durability > 0, do: durability, else: 0),
+    flavor: if(flavor > 0, do: flavor, else: 0),
+    texture: if(texture > 0, do: texture, else: 0)
+  }
+
+  score
+end
+```
+
+```elixir
+:timer.tc(fn ->
+  score_recipe.([
+    {{"Butterscotch", %{capacity: -1, durability: -2, flavor: 6, texture: 3, calories: 8}}, 44},
+    {{"Cinnamon", %{capacity: 2, durability: 3, flavor: -2, texture: -1, calories: 3}}, 56}
+  ])
+end)
+```
+
+```elixir
+:timer.tc(fn ->
+  score_recipe.([
+    {{"Sugar", %{calories: 8, capacity: -1, durability: 0, flavor: 0, texture: 2}}, 0},
+    {{"Frosting", %{calories: 6, capacity: 0, durability: -1, flavor: 4, texture: 0}}, 0},
+    {{"PeanutButter", %{calories: 1, capacity: -1, durability: 3, flavor: 0, texture: 0}}, 0},
+    {{"Sprinkles", %{calories: 5, capacity: 5, durability: -1, flavor: 0, texture: 0}}, 100}
+  ])
+end)
+```
+
+```elixir
 cookies =
-  Combinations.get(ingredients, 100)
+  combinations
   |> Enum.map(fn recipe ->
-    score =
-      Enum.reduce(
-        recipe,
-        %{capacity: 0, durability: 0, flavor: 0, texture: 0},
-        fn {{_ingredient, properties}, qty}, acc ->
-          %{
-            acc
-            | capacity: acc.capacity + qty * properties.capacity,
-              durability: acc.durability + qty * properties.durability,
-              flavor: acc.flavor + qty * properties.flavor,
-              texture: acc.texture + qty * properties.texture
-          }
-        end
-      )
-
-    score =
-      score
-      |> Enum.map(fn
-        {k, v} when v < 0 -> {k, 0}
-        {k, v} -> {k, v}
-      end)
-      |> Enum.into(%{})
-
-    {recipe, score}
+    {recipe, score_recipe.(recipe)}
   end)
 ```
 
