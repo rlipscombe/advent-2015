@@ -16,20 +16,20 @@ input = Kino.Input.textarea("Puzzle Input:")
 re =
   ~r/(.*): capacity ([0-9-]+), durability ([0-9-]+), flavor ([0-9-]+), texture ([0-9-]+), calories ([0-9-]+)/
 
-Kino.Input.read(input)
-|> String.split("\n", trim: true)
-|> Enum.map(&Regex.run(re, &1, capture: :all_but_first))
-|> Enum.map(fn [ingredient, capacity, durability, flavor, texture, calories] ->
-  {ingredient,
-   %{
-     capacity: capacity,
-     durability: durability,
-     flavor: flavor,
-     texture: texture,
-     calories: calories
-   }}
-end)
-|> Enum.into(%{})
+ingredients =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.map(&Regex.run(re, &1, capture: :all_but_first))
+  |> Enum.map(fn [ingredient, capacity, durability, flavor, texture, calories] ->
+    {ingredient,
+     %{
+       capacity: String.to_integer(capacity),
+       durability: String.to_integer(durability),
+       flavor: String.to_integer(flavor),
+       texture: String.to_integer(texture),
+       calories: String.to_integer(calories)
+     }}
+  end)
 ```
 
 ```elixir
@@ -50,4 +50,44 @@ defmodule Combinations do
 end
 
 Combinations.get([:a, :b, :c, :d], 10)
+:pass
+```
+
+```elixir
+cookies =
+  Combinations.get(ingredients, 100)
+  |> Enum.map(fn recipe ->
+    score =
+      Enum.reduce(
+        recipe,
+        %{capacity: 0, durability: 0, flavor: 0, texture: 0},
+        fn {{_ingredient, properties}, qty}, acc ->
+          %{
+            acc
+            | capacity: acc.capacity + qty * properties.capacity,
+              durability: acc.durability + qty * properties.durability,
+              flavor: acc.flavor + qty * properties.flavor,
+              texture: acc.texture + qty * properties.texture
+          }
+        end
+      )
+
+    score =
+      score
+      |> Enum.map(fn
+        {k, v} when v < 0 -> {k, 0}
+        {k, v} -> {k, v}
+      end)
+      |> Enum.into(%{})
+
+    {recipe, score}
+  end)
+```
+
+```elixir
+cookies
+|> Enum.map(fn {recipe, score} ->
+  Enum.reduce(score, 1, fn {_, a}, acc -> acc * a end)
+end)
+|> Enum.max()
 ```
