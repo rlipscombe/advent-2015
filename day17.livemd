@@ -98,6 +98,26 @@ Combinations.search([20, 15, 10, 5, 5], 25)
 :pass
 ```
 
+## Part 1
+
 ```elixir
 Combinations.search(input, target) |> Enum.count()
+```
+
+## Part 2
+
+```elixir
+combinations = Combinations.search([20, 15, 10, 5, 5], 25)
+min_length = combinations |> Enum.map(&length/1) |> Enum.min()
+2 = min_length
+
+ways = combinations |> Enum.filter(fn x -> length(x) == min_length end) |> Enum.count()
+3 = ways
+:pass
+```
+
+```elixir
+combinations = Combinations.search(input, target)
+min_length = combinations |> Enum.map(&length/1) |> Enum.min()
+combinations |> Enum.filter(fn x -> length(x) == min_length end) |> Enum.count()
 ```
