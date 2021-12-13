@@ -75,10 +75,11 @@ dancer = %{fly_for: 11, name: "Dancer", rest_for: 162, speed: 16}
 ## Part 1
 
 ```elixir
-{_, distance} =
+standings =
   input
   |> Enum.map(fn reindeer -> {reindeer.name, Part1.race_until(reindeer, elapsed)} end)
-  |> Enum.max_by(fn {_, dist} -> dist end)
+
+{_, distance} = standings |> Enum.max_by(fn {_, dist} -> dist end)
 ```
 
 ## Visualisation
@@ -91,9 +92,12 @@ values =
       %{name: name, time: t, dist: d}
     end) ++ acc
   end)
-```
 
-```elixir
+legend_values =
+  standings
+  |> Enum.sort_by(fn {_, dist} -> dist end, &>=/2)
+  |> Enum.map(fn {name, _} -> name end)
+
 height = 400 * (distance / elapsed)
 
 Vl.new(width: 400, height: height)
@@ -101,5 +105,5 @@ Vl.new(width: 400, height: height)
 |> Vl.mark(:line)
 |> Vl.encode_field(:x, "time", type: :quantitative)
 |> Vl.encode_field(:y, "dist", type: :quantitative)
-|> Vl.encode_field(:color, "name")
+|> Vl.encode_field(:color, "name", legend: [values: legend_values])
 ```
