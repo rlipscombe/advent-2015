@@ -1,0 +1,66 @@
+# Advent of Code 2015, Day 16: Aunt Sue
+
+## Dependencies
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+## Puzzle Input
+
+```elixir
+evidence = Kino.Input.textarea("Evidence:")
+```
+
+```elixir
+evidence =
+  Kino.Input.read(evidence)
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, ": ", trim: true))
+  |> Enum.map(fn [marker, qty] -> {marker, String.to_integer(qty)} end)
+  |> Enum.into(%{})
+```
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+input =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, ": ", parts: 2))
+  |> Enum.map(fn [sue, clues] ->
+    {sue,
+     String.split(clues, ", ", trim: true)
+     |> Enum.map(&String.split(&1, ": ", trim: true))
+     |> Enum.map(fn [clue, qty] -> {clue, String.to_integer(qty)} end)}
+  end)
+```
+
+## Part 1
+
+```elixir
+Enum.filter(input, fn {sue, clues} ->
+  Enum.all?(clues, fn _clue = {clue, qty} ->
+    Map.fetch!(evidence, clue) == qty
+  end)
+end)
+```
+
+## Part 2
+
+```elixir
+Enum.filter(input, fn {_sue, clues} ->
+  Enum.all?(clues, fn
+    _clue = {clue, qty} when clue in ["cats", "trees"] ->
+      Map.fetch!(evidence, clue) < qty
+
+    _clue = {clue, qty} when clue in ["pomeranians", "goldfish"] ->
+      Map.fetch!(evidence, clue) > qty
+
+    _clue = {clue, qty} ->
+      Map.fetch!(evidence, clue) == qty
+  end)
+end)
+```
