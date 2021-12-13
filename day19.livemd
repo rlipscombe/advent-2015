@@ -1,0 +1,92 @@
+# Advent of Code 2015, Day 19: Medicine for Rudolph
+
+## Dependencies
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+## Puzzle Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+Regex.scan(~r/[A-Z][a-z]?/, "NRnFAr")
+```
+
+```elixir
+split_molecule = fn str ->
+  Regex.scan(~r/[A-Z][a-z]?/, str)
+  |> Enum.map(fn [x] -> x end)
+end
+
+["H", "O", "H"] = split_molecule.("HOH")
+["N", "Rn", "F", "Ar"] = split_molecule.("NRnFAr")
+:pass
+```
+
+```elixir
+[replacements, starting] =
+  Kino.Input.read(input)
+  |> String.split("\n\n", trim: true)
+
+replacements =
+  replacements
+  |> String.split("\n")
+  |> Enum.map(fn r ->
+    [from, to] = String.split(r, " => ")
+    {from, to}
+  end)
+
+starting = split_molecule.(starting)
+
+[replacements: replacements, starting: starting]
+```
+
+```elixir
+defmodule Part1 do
+  def evolve(replacements, starting) do
+    results = evolvep([], replacements, starting, [])
+    results |> Enum.uniq()
+  end
+
+  defp evolvep(acc, _replacements, [], results) do
+    [IO.iodata_to_binary(acc) | results]
+  end
+
+  defp evolvep(acc, replacements, [s | starting], results) do
+    # Don't evolve the first character.
+    results = evolvep([acc, s], replacements, starting, results)
+
+    # Evolve the first character.
+    Enum.reduce(replacements, results, fn
+      {^s, r}, results ->
+        # This returns all possible evolutions.
+        # evolvep([acc, r], replacements, starting, results)
+        # We've evolved the first character, so just collect the rest.
+        [IO.iodata_to_binary([acc, r, starting]) | results]
+
+      # evolvep(, [], starting, results)
+
+      {_, _}, results ->
+        results
+    end)
+  end
+end
+
+["OHOH", "HOOH", "HHHH", "HOHO", "HOH"] =
+  Part1.evolve([{"H", "HO"}, {"H", "OH"}, {"O", "HH"}], split_molecule.("HOH"))
+
+["OHOHOHO", "HOOHOHO", "HHHHOHO", "HOHOOHO", "HOHHHHO", "HOHOHOO", "HOHOHHH", "HOHOHO"] =
+  Part1.evolve([{"H", "HO"}, {"H", "OH"}, {"O", "HH"}], split_molecule.("HOHOHO"))
+
+:pass
+```
+
+```elixir
+count = Part1.evolve(replacements, starting) |> Enum.count()
+# includes starting molecule
+count - 1
+```
