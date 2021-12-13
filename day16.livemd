@@ -41,7 +41,7 @@ input =
 ## Part 1
 
 ```elixir
-Enum.filter(input, fn {sue, clues} ->
+Enum.filter(input, fn {_sue, clues} ->
   Enum.all?(clues, fn _clue = {clue, qty} ->
     Map.fetch!(evidence, clue) == qty
   end)
