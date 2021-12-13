@@ -1,0 +1,103 @@
+# Advent of Code 2015, Day 17: No Such Thing as Too Much
+
+## Dependencies
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+## Puzzle Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+target = Kino.Input.text("Target:")
+```
+
+```elixir
+target = Kino.Input.read(target) |> String.to_integer()
+```
+
+```elixir
+input =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer/1)
+```
+
+```elixir
+[15, 5, 10] = [15, 10, 5, 10] -- [10]
+:pass
+```
+
+```elixir
+# This returns all combinations, in any order
+defmodule AllCombinations do
+  def search(available, target), do: searchp([], available, target, [])
+
+  defp searchp(used, available, target, results) do
+    Enum.reduce(available, results, fn
+      container, results when container == target ->
+        [[container | used] | results]
+
+      container, results when container < target ->
+        searchp([container | used], available -- [container], target - container, results)
+
+      container, results when container > target ->
+        results
+    end)
+  end
+end
+
+[[2]] = AllCombinations.search([2], 2)
+[[1, 1], [1, 1]] = AllCombinations.search([1, 1], 2)
+
+[[3, 2], [2, 3], [1, 1, 3], [1, 1, 3], [1, 3, 1], [3, 1, 1], [1, 3, 1], [3, 1, 1]] =
+  AllCombinations.search([1, 1, 3, 2], 5)
+
+12 = Enum.count(AllCombinations.search([20, 15, 10, 5, 5], 25))
+
+:pass
+```
+
+```elixir
+AllCombinations.search(input, target)
+```
+
+```elixir
+defmodule Combinations do
+  def search(available, target), do: searchp([], Enum.sort(available, :desc), target, [])
+
+  defp searchp(used, [], _target, results), do: results
+
+  defp searchp(used, [container | available], target, results) when container == target do
+    searchp(used, available, target, [[container | used] | results])
+  end
+
+  defp searchp(used, [container | available], target, results) when container < target do
+    # Two recursive steps here: one if we use the next container, one if we skip it.
+    searchp(
+      [container | used],
+      available,
+      target - container,
+      searchp(used, available, target, results)
+    )
+  end
+
+  defp searchp(used, [container | available], target, results) when container > target do
+    searchp(used, available, target, results)
+  end
+end
+
+[] = Combinations.search([], 1)
+[[2]] = Combinations.search([2], 2)
+[[1, 1]] = Combinations.search([1, 1], 2)
+Combinations.search([20, 15, 10, 5, 5], 25)
+:pass
+```
+
+```elixir
+Combinations.search(input, target) |> Enum.count()
+```
