@@ -30,6 +30,11 @@ ingredients =
        calories: String.to_integer(calories)
      }}
   end)
+  |> Enum.into(%{})
+```
+
+```elixir
+ingredient_names = Enum.map(ingredients, fn {name, _properties} -> name end)
 ```
 
 ```elixir
@@ -49,12 +54,15 @@ defmodule Combinations do
   end
 end
 
-Combinations.get([:a, :b, :c, :d], 10)
+1 = Combinations.get([:a], 2) |> Enum.count()
+4 = Combinations.get([:a, :b], 3) |> Enum.count()
+21 = Combinations.get([:a, :b, :c], 5) |> Enum.count()
+286 = Combinations.get([:a, :b, :c, :d], 10) |> Enum.count()
 :pass
 ```
 
 ```elixir
-combinations = Combinations.get(ingredients, 100)
+combinations = Combinations.get(ingredient_names, 100)
 ```
 
 ```elixir
@@ -63,37 +71,30 @@ Enum.count(combinations)
 
 ```elixir
 score_recipe = fn recipe ->
-  capacity =
-    Enum.reduce(recipe, 0, fn {{_, %{capacity: x}}, qty}, acc ->
-      acc + qty * x
-    end)
+  score =
+    Enum.reduce(
+      recipe,
+      %{capacity: 0, durability: 0, flavor: 0, texture: 0, calories: 0},
+      fn {ingredient_name, qty}, acc ->
+        properties = Map.fetch!(ingredients, ingredient_name)
 
-  durability =
-    Enum.reduce(recipe, 0, fn {{_, %{durability: x}}, qty}, acc ->
-      acc + qty * x
-    end)
-
-  flavor =
-    Enum.reduce(recipe, 0, fn {{_, %{flavor: x}}, qty}, acc ->
-      acc + qty * x
-    end)
-
-  texture =
-    Enum.reduce(recipe, 0, fn {{_, %{texture: x}}, qty}, acc ->
-      acc + qty * x
-    end)
-
-  calories =
-    Enum.reduce(recipe, 0, fn {{_, %{calories: x}}, qty}, acc ->
-      acc + qty * x
-    end)
+        %{
+          acc
+          | capacity: acc.capacity + qty * properties.capacity,
+            durability: acc.durability + qty * properties.durability,
+            flavor: acc.flavor + qty * properties.flavor,
+            texture: acc.texture + qty * properties.texture,
+            calories: acc.calories + qty * properties.calories
+        }
+      end
+    )
 
   score = %{
-    capacity: if(capacity > 0, do: capacity, else: 0),
-    durability: if(durability > 0, do: durability, else: 0),
-    flavor: if(flavor > 0, do: flavor, else: 0),
-    texture: if(texture > 0, do: texture, else: 0),
-    calories: if(calories > 0, do: calories, else: 0)
+    capacity: if(score.capacity > 0, do: score.capacity, else: 0),
+    durability: if(score.durability > 0, do: score.durability, else: 0),
+    flavor: if(score.flavor > 0, do: score.flavor, else: 0),
+    texture: if(score.texture > 0, do: score.texture, else: 0),
+    calories: if(score.calories > 0, do: score.calories, else: 0)
   }
 
   score
@@ -103,8 +104,8 @@ end
 ```elixir
 :timer.tc(fn ->
   score_recipe.([
-    {{"Butterscotch", %{capacity: -1, durability: -2, flavor: 6, texture: 3, calories: 8}}, 44},
-    {{"Cinnamon", %{capacity: 2, durability: 3, flavor: -2, texture: -1, calories: 3}}, 56}
+    {"Butterscotch", 44},
+    {"Cinnamon", 56}
   ])
 end)
 ```
@@ -112,15 +113,16 @@ end)
 ```elixir
 :timer.tc(fn ->
   score_recipe.([
-    {{"Sugar", %{calories: 8, capacity: -1, durability: 0, flavor: 0, texture: 2}}, 0},
-    {{"Frosting", %{calories: 6, capacity: 0, durability: -1, flavor: 4, texture: 0}}, 0},
-    {{"PeanutButter", %{calories: 1, capacity: -1, durability: 3, flavor: 0, texture: 0}}, 0},
-    {{"Sprinkles", %{calories: 5, capacity: 5, durability: -1, flavor: 0, texture: 0}}, 100}
+    {"Sugar", 0},
+    {"Frosting", 0},
+    {"PeanutButter", 0},
+    {"Sprinkles", 100}
   ])
 end)
 ```
 
 ```elixir
+# 59.3s !!
 cookies =
   combinations
   |> Enum.map(fn recipe ->
