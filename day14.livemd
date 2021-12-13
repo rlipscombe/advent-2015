@@ -79,7 +79,7 @@ standings =
   input
   |> Enum.map(fn reindeer -> {reindeer.name, Part1.race_until(reindeer, elapsed)} end)
 
-{_, distance} = standings |> Enum.max_by(fn {_, dist} -> dist end)
+{winner, distance} = standings |> Enum.max_by(fn {_, dist} -> dist end)
 ```
 
 ## Visualisation
@@ -106,4 +106,31 @@ Vl.new(width: 400, height: height)
 |> Vl.encode_field(:x, "time", type: :quantitative)
 |> Vl.encode_field(:y, "dist", type: :quantitative)
 |> Vl.encode_field(:color, "name", legend: [values: legend_values])
+```
+
+## Part 2
+
+```elixir
+scores =
+  Enum.reduce(1..elapsed, %{}, fn t, acc ->
+    # How far has everybody gone?
+    distances =
+      Enum.map(input, fn reindeer ->
+        {reindeer.name, Part1.race_until(reindeer, t)}
+      end)
+
+    # Who's in the lead?
+    [leaders | _] =
+      distances
+      |> Enum.sort_by(fn {_, d} -> d end, :desc)
+      |> Enum.chunk_by(fn {_, d} -> d end)
+
+    Enum.reduce(leaders, acc, fn {leader, _}, acc ->
+      Map.update(acc, leader, 1, fn pts -> pts + 1 end)
+    end)
+  end)
+```
+
+```elixir
+Enum.max_by(scores, fn {_k, v} -> v end)
 ```
