@@ -47,31 +47,50 @@ end
 ## Part 1
 
 ```elixir
-# Convert the rules into a map for easy lookup.
-rules = Enum.reduce(rules, %{}, fn [pair, pts], map -> Map.put(map, pair, pts) end)
+defmodule Happiness do
+  def get_best_arrangement(names, rules) do
+    # Convert the rules into a map for easy lookup.
+    rules = Enum.reduce(rules, %{}, fn [pair, pts], map -> Map.put(map, pair, pts) end)
 
-# Work out the possible table arrangements.
-permutations = EnumEx.permutations(names)
+    # Work out the possible table arrangements.
+    permutations = EnumEx.permutations(names)
 
-rings =
-  permutations
-  |> Enum.map(fn list ->
-    (list ++ [hd(list)]) |> Enum.chunk_every(2, 1, :discard)
+    rings =
+      permutations
+      |> Enum.map(fn list ->
+        (list ++ [hd(list)]) |> Enum.chunk_every(2, 1, :discard)
+      end)
+
+    arrangements =
+      Enum.map(rings, fn ring ->
+        Enum.map(ring, fn [a, b] ->
+          {[a, b], Map.fetch!(rules, [a, b]), Map.fetch!(rules, [b, a])}
+        end)
+      end)
+
+    arrangements =
+      arrangements
+      |> Enum.map(fn arrangement ->
+        score = Enum.reduce(arrangement, 0, fn {_pair, s1, s2}, acc -> acc + s1 + s2 end)
+        {arrangement, score}
+      end)
+
+    arrangements |> Enum.max_by(fn {_arr, pts} -> pts end)
+  end
+end
+
+Happiness.get_best_arrangement(names, rules)
+```
+
+## Part 2
+
+```elixir
+new_name = "Roger"
+# For each name, add a pair of rules:
+new_rules =
+  Enum.reduce(names, rules, fn name, acc ->
+    [[[name, new_name], 0], [[new_name, name], 0] | acc]
   end)
 
-arrangements =
-  Enum.map(rings, fn ring ->
-    Enum.map(ring, fn [a, b] ->
-      {[a, b], Map.fetch!(rules, [a, b]), Map.fetch!(rules, [b, a])}
-    end)
-  end)
-
-arrangements =
-  arrangements
-  |> Enum.map(fn arrangement ->
-    score = Enum.reduce(arrangement, 0, fn {_pair, s1, s2}, acc -> acc + s1 + s2 end)
-    {arrangement, score}
-  end)
-
-arrangements |> Enum.max_by(fn {_arr, pts} -> pts end)
+Happiness.get_best_arrangement([new_name | names], new_rules)
 ```
