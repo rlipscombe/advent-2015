@@ -1,0 +1,73 @@
+# Advent of Code 2015, Day 12
+
+## Dependencies
+
+```elixir
+Mix.install([
+  {:kino, github: "livebook-dev/kino"},
+  {:jason, "~> 1.2"}
+])
+```
+
+## Puzzle Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+input = Kino.Input.read(input)
+```
+
+## Part 1
+
+```elixir
+re = ~r/-?\d+/
+Regex.scan(re, input) |> Enum.reduce(0, fn [str], acc -> acc + String.to_integer(str) end)
+```
+
+## Part 2
+
+```elixir
+Jason.decode!(input)
+```
+
+```elixir
+defmodule Part2 do
+  def sum(value) when is_integer(value), do: value
+
+  def sum(list) when is_list(list) do
+    Enum.reduce(list, 0, fn
+      value, acc when is_integer(value) -> acc + value
+      value, acc when is_list(value) -> acc + sum(value)
+      value, acc when is_map(value) -> acc + sum(value)
+      _, acc -> acc
+    end)
+  end
+
+  def sum(map) when is_map(map) do
+    if Enum.any?(Map.keys(map), &is_integer(&1)), do: raise("!!")
+
+    if Enum.any?(Map.values(map), &(&1 == "red")) do
+      0
+    else
+      Enum.reduce(map, 0, fn {_key, value}, acc ->
+        acc + sum(value)
+      end)
+    end
+  end
+
+  def sum(_), do: 0
+end
+
+6 = Part2.sum(Jason.decode!(~s([1, 2, 3])))
+6 = Part2.sum(Jason.decode!(~s([1,{"c":"teal","b":2},3])))
+4 = Part2.sum(Jason.decode!(~s([1,{"c":"red","b":2},3])))
+0 = Part2.sum(Jason.decode!(~s({"d":"red","e":[1,2,3,4],"f":5})))
+6 = Part2.sum(Jason.decode!(~s([1,"red",5])))
+:pass
+```
+
+```elixir
+Part2.sum(Jason.decode!(input))
+```
