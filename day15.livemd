@@ -22,12 +22,12 @@ ingredients =
   |> Enum.map(&Regex.run(re, &1, capture: :all_but_first))
   |> Enum.map(fn [ingredient, capacity, durability, flavor, texture, calories] ->
     {ingredient,
-     %{
-       capacity: String.to_integer(capacity),
-       durability: String.to_integer(durability),
-       flavor: String.to_integer(flavor),
-       texture: String.to_integer(texture),
-       calories: String.to_integer(calories)
+     {
+       String.to_integer(capacity),
+       String.to_integer(durability),
+       String.to_integer(flavor),
+       String.to_integer(texture),
+       String.to_integer(calories)
      }}
   end)
   |> Enum.into(%{})
@@ -74,40 +74,21 @@ score_recipe = fn recipe ->
   score =
     Enum.reduce(
       recipe,
-      %{capacity: 0, durability: 0, flavor: 0, texture: 0, calories: 0},
-      fn {ingredient_name, qty}, acc ->
-        properties = Map.fetch!(ingredients, ingredient_name)
-
-        %{
-          acc
-          | capacity: acc.capacity + qty * properties.capacity,
-            durability: acc.durability + qty * properties.durability,
-            flavor: acc.flavor + qty * properties.flavor,
-            texture: acc.texture + qty * properties.texture,
-            calories: acc.calories + qty * properties.calories
-        }
+      {0, 0, 0, 0, 0},
+      fn {ingredient_name, qty}, {cap, dur, fla, tex, cal} ->
+        {capa, dura, flav, text, calo} = Map.fetch!(ingredients, ingredient_name)
+        {cap + qty * capa, dur + qty * dura, fla + qty * flav, tex + qty * text, cal + qty * calo}
       end
     )
 
-  score = %{
-    capacity: if(score.capacity > 0, do: score.capacity, else: 0),
-    durability: if(score.durability > 0, do: score.durability, else: 0),
-    flavor: if(score.flavor > 0, do: score.flavor, else: 0),
-    texture: if(score.texture > 0, do: score.texture, else: 0),
-    calories: if(score.calories > 0, do: score.calories, else: 0)
-  }
+  collar = fn
+    x when x > 0 -> x
+    _ -> 0
+  end
 
-  score
+  {collar.(elem(score, 0)), collar.(elem(score, 1)), collar.(elem(score, 2)),
+   collar.(elem(score, 3)), collar.(elem(score, 4))}
 end
-```
-
-```elixir
-:timer.tc(fn ->
-  score_recipe.([
-    {"Butterscotch", 44},
-    {"Cinnamon", 56}
-  ])
-end)
 ```
 
 ```elixir
@@ -122,7 +103,7 @@ end)
 ```
 
 ```elixir
-# 59.3s !!
+# 41s
 cookies =
   combinations
   |> Enum.map(fn recipe ->
@@ -132,11 +113,8 @@ cookies =
 
 ```elixir
 cookies
-|> Enum.map(fn {_recipe, score} ->
-  Enum.reduce(score, 1, fn
-    {:calories, _}, acc -> acc
-    {_, a}, acc -> acc * a
-  end)
+|> Enum.map(fn {_recipe, _score = {cap, dur, fla, tex, _cal}} ->
+  cap * dur * fla * tex
 end)
 |> Enum.max()
 ```
@@ -146,18 +124,15 @@ end)
 ```elixir
 healthy_cookies =
   cookies
-  |> Enum.filter(fn {recipe, score} ->
-    score.calories == 500
+  |> Enum.filter(fn {_recipe, _score = {_, _, _, _, calories}} ->
+    calories == 500
   end)
 ```
 
 ```elixir
 healthy_cookies
-|> Enum.map(fn {_recipe, score} ->
-  Enum.reduce(score, 1, fn
-    {:calories, _}, acc -> acc
-    {_, a}, acc -> acc * a
-  end)
+|> Enum.map(fn {_recipe, _score = {cap, dur, fla, tex, _cal}} ->
+  cap * dur * fla * tex
 end)
 |> Enum.max()
 ```
