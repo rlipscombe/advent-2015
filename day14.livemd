@@ -1,0 +1,72 @@
+# Advent of Code 2015, Day 14
+
+## Dependencies
+
+```elixir
+Mix.install([
+  {:kino, github: "livebook-dev/kino"}
+])
+```
+
+## Puzzle Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle Input:")
+```
+
+```elixir
+re = ~r{(.*) can fly (\d+) km/s for (\d+) seconds, but then must rest for (\d+) seconds.}
+
+input =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.map(&Regex.run(re, &1, capture: :all_but_first))
+  |> Enum.map(fn [name, speed, fly_for, rest_for] ->
+    %{
+      name: name,
+      speed: String.to_integer(speed),
+      fly_for: String.to_integer(fly_for),
+      rest_for: String.to_integer(rest_for)
+    }
+  end)
+```
+
+## Examples
+
+```elixir
+# Each reindeer's duty cycle is fly_for + rest_for, so how many full duty cycles can they
+# do within the time?
+defmodule Part1 do
+  def race_until(reindeer = %{fly_for: fly_for, speed: speed, rest_for: rest_for}, secs) do
+    # How many complete duty cycles fit?
+    complete_cycles = div(secs, fly_for + rest_for)
+    time_remaining = rem(secs, fly_for + rest_for)
+    time_remaining_in_flight = min(time_remaining, fly_for)
+
+    complete_cycles * fly_for * speed + time_remaining_in_flight * speed
+  end
+end
+
+comet = %{fly_for: 10, name: "Comet", rest_for: 127, speed: 14}
+dancer = %{fly_for: 11, name: "Dancer", rest_for: 162, speed: 16}
+
+14 = Part1.race_until(comet, 1)
+16 = Part1.race_until(dancer, 1)
+140 = Part1.race_until(comet, 10)
+160 = Part1.race_until(dancer, 10)
+1120 = Part1.race_until(comet, 1000)
+1056 = Part1.race_until(dancer, 1000)
+:pass
+```
+
+## Part 1
+
+```elixir
+# A graph would be cool...
+```
+
+```elixir
+input
+|> Enum.map(fn reindeer -> {reindeer.name, Part1.race_until(reindeer, 2503)} end)
+|> Enum.max_by(fn {_, dist} -> dist end)
+```
