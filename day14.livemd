@@ -95,7 +95,7 @@ values =
 
 legend_values =
   standings
-  |> Enum.sort_by(fn {_, dist} -> dist end, &>=/2)
+  |> Enum.sort_by(fn {_, dist} -> dist end, :desc)
   |> Enum.map(fn {name, _} -> name end)
 
 height = 400 * (distance / elapsed)
