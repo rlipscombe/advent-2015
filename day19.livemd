@@ -40,8 +40,6 @@ replacements =
     {from, to}
   end)
 
-starting = split_molecule.(starting)
-
 [replacements: replacements, starting: starting]
 ```
 
@@ -68,8 +66,6 @@ defmodule Part1 do
         # We've evolved the first character, so just collect the rest.
         [IO.iodata_to_binary([acc, r, starting]) | results]
 
-      # evolvep(, [], starting, results)
-
       {_, _}, results ->
         results
     end)
@@ -86,7 +82,61 @@ end
 ```
 
 ```elixir
-count = Part1.evolve(replacements, starting) |> Enum.count()
+count = Part1.evolve(replacements, split_molecule.(starting)) |> Enum.count()
 # includes starting molecule
 count - 1
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def collapse(replacements, starting) do
+    collapsep([], replacements, starting, [])
+  end
+
+  defp collapsep(acc, [], starting, results), do: raise("!")
+
+  defp collapsep(acc, replacements, starting, results) do
+    IO.puts("#{starting}")
+    # For each possible replacement
+    Enum.reduce(replacements, results, fn
+      replacement = {lhs, rhs}, results ->
+        # At each possible positiom.
+        case replace_each(starting, rhs, lhs) do
+          [] ->
+            # No more options with this replacement, try a different one.
+            collapsep(acc, replacements -- [replacement], starting, results)
+
+          candidates ->
+            Enum.reduce(candidates, results, fn
+              next, results ->
+                collapsep(acc, replacements, next, results)
+            end)
+        end
+    end)
+  end
+
+  defp replace_each(subject, pattern, replacement) do
+    {:ok, re} = Regex.compile(Regex.escape(pattern))
+    matches = Regex.scan(re, subject, return: :index) |> List.flatten()
+
+    Stream.unfold(
+      {matches, subject},
+      fn
+        {[], str} ->
+          nil
+
+        {[{pos, len} | matches], str} ->
+          {prefix, suffix} = String.split_at(str, pos)
+          {_, suffix} = String.split_at(suffix, len)
+          result = prefix <> replacement <> suffix
+          {result, {matches, str}}
+      end
+    )
+    |> Enum.to_list()
+  end
+end
+
+Part2.collapse([{"e", "H"}, {"e", "O"}, {"H", "HO"}, {"H", "OH"}, {"O", "HH"}], "HOH")
 ```
