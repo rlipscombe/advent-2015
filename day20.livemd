@@ -1,0 +1,303 @@
+# Advent of Code 2015, Day 20: Infinite Elves and Infinite Houses
+
+## Understanding the problem
+
+Each house is visited by the elves matching its unique integer factors. Each delivers 10 presents.
+
+* House 1: 1: Elf 1: `10`
+* House 2: 2x1: Elf 2 and Elf 1: `10 x (2+1) = 30`
+* House 3: 3x1: Elves 3, 2 and 1: `10 x (3 + 1) = 40`
+* House 4: 4x2x1: `10 x (4 + 2 + 1) = 70`
+* ...and so on.
+
+So our problem becomes one of finding the integer factors of a given number.
+
+## Naive Factorization
+
+Here's naive implementation:
+
+```elixir
+naive_factors = fn x when is_integer(x) and x >= 1 ->
+  Enum.reduce(1..x, [], fn n, acc ->
+    if rem(x, n) == 0, do: [n | acc], else: acc
+  end)
+end
+
+[1] = naive_factors.(1)
+[2, 1] = naive_factors.(2)
+[6, 3, 2, 1] = naive_factors.(6)
+[120, 60, 40, 30, 24, 20, 15, 12, 10, 8, 6, 5, 4, 3, 2, 1] = naive_factors.(120)
+:pass
+```
+
+The performance of the above is terrible. Here's a benchmark function.
+
+```elixir
+benchmark = fn fun, deadline_us ->
+  Enum.reduce_while(1..22, [], fn order, acc ->
+    # 1, 10, 100, 1000, etc.
+    n = round(:math.pow(10, order))
+    {us, _} = :timer.tc(fn -> fun.(n) end)
+
+    if us < deadline_us,
+      do: {:cont, [{n, us / 1000} | acc]},
+      else: {:halt, [{n, us / 1000} | acc]}
+  end)
+end
+```
+
+If we run our `naive_factors` function, we see that we can get up to about $10^6$ before it starts taking ~1s.
+
+```elixir
+benchmark.(naive_factors, 500_000)
+```
+
+We can speed it up a _bit_, by only searching until the square root of the number:
+
+```elixir
+naive_factors_sqrt = fn x when is_integer(x) and x >= 1 ->
+  Enum.reduce(1..round(:math.sqrt(x)), [], fn n, acc ->
+    case rem(x, n) do
+      0 ->
+        d = div(x, n)
+        [n, d | acc]
+
+      _ ->
+        acc
+    end
+  end)
+  |> Enum.sort()
+  |> Enum.dedup()
+end
+
+# ^^ the sort/dedup thing is untidy, but isn't that important performance-wise.
+
+[1] = naive_factors_sqrt.(1)
+[1, 2] = naive_factors_sqrt.(2)
+[1, 2, 3, 6] = naive_factors_sqrt.(6)
+[1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120] = naive_factors_sqrt.(120)
+:pass
+```
+
+```elixir
+benchmark.(naive_factors_sqrt, 500_000)
+```
+
+That gets us to $10^{12}$, another 6 orders of magnitude.
+
+But, unfortunately, AoC forces us to learn new stuff by making brute-force or naive approaches
+untenable. We'll have to do some research.
+
+## How many presents?
+
+Given a house number, how many presents does it get? Sum the factors and multiply by 10.
+
+```elixir
+Enum.sum(naive_factors_sqrt.(9)) * 10
+
+Stream.unfold(1, fn house ->
+  presents = Enum.sum(naive_factors_sqrt.(house)) * 10
+  IO.puts("House #{house} got #{presents} presents.")
+  {{house, presents}, house + 1}
+end)
+|> Enum.take(9)
+```
+
+## Prime Factorization
+
+From the prime factors of a number, we can find the integer factors.
+
+On Stack Overflow, I found this:
+
+> Constructing the factors of n from its prime factors is then an easy task.
+> Just use all possible exponents for the found prime factors and combine them
+> in each possible way.
+
+That's ... not a good explanation of what's going on. I found a better explanation in
+[this video for grade 8 students](https://www.youtube.com/watch?v=ldrjCgsJWgg).
+
+```elixir
+# Prime factors of 210:
+
+0 = rem(210, 2)
+105 = div(210, 2)
+
+0 = rem(105, 3)
+35 = div(105, 3)
+
+0 = rem(35, 5)
+7 = div(35, 5)
+
+[2, 3, 5, 7]
+```
+
+Given those prime factors for 210, we can find the integer factors:
+
+`[1, 2, 3, 5, 6, 7, 10, 14, 15, 21, 30, 35, 42, 70, 105, 210]`
+
+* $1$
+* $2 = 2$
+* $3 = 3$
+* $5 = 5$
+* $6 = 2 \times 3$,
+* $7 = 7$,
+* $10 = 2 \times 5$
+* $14 = 2 \times 7$,
+* $15 = 3 \times 5$
+* $21 = 3 \times 7$
+* $30 = 2 \times 3 \times 5$
+* $35 = 5 \times 7$
+* $42 = 2 \times 3 \times 7$
+* $70 = 2 \times 5 \times 7$
+* $105 = 3 \times 5 \times 7$
+* $210 = 2 \times 3 \times 5 \times 7$
+
+The Stack Overflow answer says "use all possible exponents", but we've not used any
+exponent $\ne$ 1.
+
+If we had, say $n=420$, that would have prime factors `[2, 2, 3, 5, 7]`,
+so we'd end up with $2^{2}$ in our set of factors, but that's not exponentiation;
+it's just having that extra `2` in our factors.
+
+<!-- livebook:{"break_markdown":true} -->
+
+So, if we can find a workable algorithm to give us the prime factors, we should be good.
+
+I'm hoping that we don't need anything _too_ complicated, because I don't fancy implementing a
+primality check in Elixir.
+
+I found [this implementation](https://exercism.org/tracks/elixir/exercises/prime-factors/solutions/23ba937ea5d2493091e4d55d27d4e2ee) on Exercism.
+It's nothing fancy, but it might be enough.
+
+```elixir
+defmodule PrimeFactors do
+  def factors(1), do: []
+  def factors(2), do: [2]
+  def factors(n), do: factors(n, 2, [])
+
+  # n = number or numerator; d = denominator or divisor.
+  # Because we add 2 to the divisor later (odd numbers), we need to
+  # special-case 2.
+  defp factors(n, d = 2, results) do
+    case rem(n, d) do
+      0 ->
+        factors(div(n, d), d, [d | results])
+
+      _r ->
+        factors(n, 3, results)
+    end
+  end
+
+  defp factors(n, d, results) when n > d do
+    case rem(n, d) do
+      0 ->
+        factors(div(n, d), d, [d | results])
+
+      _r ->
+        factors(n, d + 2, results)
+    end
+  end
+
+  defp factors(n, _d, results), do: [n | results]
+end
+
+[2] = PrimeFactors.factors(2)
+[3] = PrimeFactors.factors(3)
+[5, 3, 2, 2, 2] = PrimeFactors.factors(120)
+[7, 5, 3, 2] = PrimeFactors.factors(210)
+[7, 5, 3, 2, 2] = PrimeFactors.factors(420)
+:pass
+```
+
+Our benchmark function's not great, because everything's a multiple of $2 \times 5$.
+
+The prime factorization seems ... reasonably performant, though...
+
+```elixir
+benchmark.(&Factors.prime_factors/1, 1_000_000)
+```
+
+```elixir
+# 439ms. I think we can live with that.
+:timer.tc(fn -> Factors.prime_factors(12_345_678_901_123_456_789_000) end)
+```
+
+## Combinations
+
+We've got the prime factors. We want the integer factors. We're going to generate
+the combinations (_not_ permutations):
+
+```elixir
+defmodule Combinations do
+  # All possible combinations from the list.
+  def combinations(list), do: combinations(list, [], [])
+
+  def combinations(_list = [], _acc = [], results), do: results
+
+  def combinations(_list = [], acc, results) do
+    # TODO: Get rid of the reverse.
+    [Enum.reverse(acc) | results]
+  end
+
+  def combinations([it | list], acc, results) do
+    combinations(list, acc, combinations(list, [it | acc], results))
+  end
+end
+
+[] = Combinations.combinations([])
+[[:a]] = Combinations.combinations([:a])
+
+[[:a], [:a, :b], [:b]] = Combinations.combinations([:a, :b]) |> Enum.sort()
+
+[[:a], [:a, :b], [:a, :b, :c], [:a, :c], [:b], [:b, :c], [:c]] =
+  Combinations.combinations([:a, :b, :c]) |> Enum.sort()
+
+:pass
+```
+
+## Integer Factorization
+
+Now we've got a performant way to get prime factors, we can use that to generate
+the integer factors.
+
+```elixir
+defmodule IntegerFactors do
+  def factors(n) do
+    prime_factors = PrimeFactors.factors(n)
+    combinations = Combinations.combinations(prime_factors)
+    [1 | Enum.map(combinations, &Enum.product(&1)) |> Enum.uniq()]
+  end
+end
+
+[3, 2, 2] = PrimeFactors.factors(12)
+[1, 2, 3, 4, 6, 12] = IntegerFactors.factors(12) |> Enum.sort()
+:pass
+```
+
+```elixir
+# Slightly disturbingly, it's ... slower...?
+benchmark.(&IntegerFactors.factors/1, 500_000)
+```
+
+That's ... disappointing. Our naive implementation got to $10^{12}$; this is only $10^{10}$.
+
+## Triangle numbers
+
+Do we really need to work out the presents for each house? We're actually dealing with
+something like triangle numbers (1, 1+2, 1+2+3). OK, they're not primes, but that'll get us
+close, right?
+
+* House 1 = 1
+* House 2 = 1+2 = 3
+* House 3 = 1+2+3 = 6 (too high)
+* House 4 = 1+2+3+4 = 10 (too high)
+
+The triangle numbers grow more quickly than the elf numbers. This means that we can't use
+that to narrow the search, because the house number will be too small (and its triangle number
+too big) compared to our target.
+
+And in the grand scheme of things, that's as good as starting with house 1, I think.
+
+<!-- livebook:{"break_markdown":true} -->
+
+
