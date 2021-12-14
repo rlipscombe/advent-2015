@@ -255,6 +255,21 @@ end
 :pass
 ```
 
+```elixir
+Enum.reduce_while(1..21, [], fn len, acc ->
+  list = List.duplicate(:x, len)
+
+  {us, count} =
+    :timer.tc(fn ->
+      Combinations.combinations(list) |> length()
+    end)
+
+  if us < 1_000_000,
+    do: {:cont, [{len, count, us / 1000} | acc]},
+    else: {:halt, [{len, count, us / 1000} | acc]}
+end)
+```
+
 ## Integer Factorization
 
 Now we've got a performant way to get prime factors, we can use that to generate
@@ -281,6 +296,18 @@ benchmark.(&IntegerFactors.factors/1, 500_000)
 
 That's ... disappointing. Our naive implementation got to $10^{12}$; this is only $10^{10}$.
 
+Where did we screw up?
+
+If there are $n$ prime factors, there are $2^{n}-1$ combinations.
+So for 20 prime factors, there are 1M combinations.
+
+But: we don't actually need the actual combinations, we might be able to get away with mapping
+each prime factor to a binary digit, and then running through the numbers.
+
+```
+for bits <- 1..(:math.pow(2, n)), do: ...?
+```
+
 ## Triangle numbers
 
 Do we really need to work out the presents for each house? We're actually dealing with
@@ -298,6 +325,117 @@ too big) compared to our target.
 
 And in the grand scheme of things, that's as good as starting with house 1, I think.
 
-<!-- livebook:{"break_markdown":true} -->
+## What does Reddit say?
 
+A mixture of brute-force and Mathematica. Where I think I screwed up is generating a
+_list_ of factors.
 
+There's an [F# solution](https://www.reddit.com/r/adventofcode/comments/3xjpp2/comment/cy59ygt/&context=3)
+that vaguely translates into Elixir like this:
+
+```elixir
+# Generating an infinite stream of integers.
+Stream.iterate(1, &(&1 + 1)) |> Enum.take(5)
+```
+
+```elixir
+unique_factors = fn n ->
+  Stream.iterate(1, &(&1 + 1))
+  |> Stream.take(round(:math.sqrt(n)))
+  |> Stream.transform([], fn
+    d, acc when rem(n, d) == 0 ->
+      case div(n, d) do
+        ^d ->
+          {[d], acc}
+
+        d2 ->
+          {[d, d2], acc}
+      end
+
+    _, acc ->
+      {[], acc}
+  end)
+end
+
+[1, 3, 9] = unique_factors.(9) |> Enum.sort()
+[1, 2, 3, 4, 6, 12] = unique_factors.(12) |> Enum.sort()
+[1, 2, 3, 5, 6, 7, 10, 14, 15, 21, 30, 35, 42, 70, 105, 210] = unique_factors.(210) |> Enum.sort()
+:pass
+```
+
+```elixir
+# Target
+target = 34_000_000
+
+# Infinite stream of houses. For each, figure out the presents.
+houses = Stream.iterate(1, &(&1 + 1))
+
+# houses
+# |> Stream.map(fn h ->
+#   {h,
+#    10 *
+#      (unique_factors.(h)
+#       |> Enum.sum())}
+# end)
+# |> Stream.filter(fn {h, presents} -> presents >= target end)
+# |> Enum.take(1)
+
+houses
+|> Stream.transform([], fn h, acc ->
+  presents = 10 * (naive_factors_sqrt.(h) |> Enum.sum())
+
+  if presents >= target do
+    {[{h, presents}], acc}
+  else
+    {[], acc}
+  end
+end)
+|> Enum.take(1)
+```
+
+Despite being a straight transcription of the F#, the performance is terrible.
+Like: "gave up after 5 minutes" terrible. Some of the Reddit solutions are in the
+10s-of-milliseconds...
+
+## Python
+
+There's [a Python solution](https://www.reddit.com/r/adventofcode/comments/3xjpp2/day_20_solutions/cy59lfq/?context=3) that takes ~18 seconds.
+
+We've got most of the pieces already.
+
+```elixir
+defmodule Part1 do
+  def search(target) do
+    search(target, 1)
+  end
+
+  def search(target, n) do
+    divisors = factors(n)
+
+    if Enum.sum(divisors) * 10 >= target do
+      n
+    else
+      search(target, n + 1)
+    end
+  end
+
+  defp factors(n) when is_integer(n) and n >= 1 do
+    Enum.reduce(1..round(:math.sqrt(n)), [], fn d, acc ->
+      case rem(n, d) do
+        0 ->
+          case div(n, d) do
+            ^d -> [d | acc]
+            d2 -> [d, d2 | acc]
+          end
+
+        _ ->
+          acc
+      end
+    end)
+  end
+end
+
+Part1.search(34_000_000)
+```
+
+14 seconds. Basically the same performance as the Python solution.
